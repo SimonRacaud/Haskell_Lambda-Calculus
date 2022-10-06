@@ -4,6 +4,8 @@ import Parser
 import Data.Lambda
 import Data.Builder
 
+import LongLambdaP
+
 -- You can add more imports if you need them
 
 -- Remember that you can (and should) define your own functions, types, and
@@ -25,10 +27,14 @@ import Data.Builder
 -- >>> parse longLambdaP "(λx.(λy.xy(xx)))"
 -- Result >< \xy.xy(xx)
 --
+-- >>> parse longLambdaP "(λx(λy.x))"
+-- UnexpectedChar '('
+--
 -- >>> parse longLambdaP "xx"
 -- UnexpectedChar 'x'
 longLambdaP :: Parser Lambda
-longLambdaP = undefined
+-- longLambdaP = P $ \str -> Result str $ build $ lam 'x' (term 'x')
+longLambdaP = build <$> pLambda
 
 -- | Parses a string representing a lambda calculus expression in short form
 --
@@ -55,6 +61,12 @@ shortLambdaP = undefined
 --
 -- >>> parse lambdaP "xx"
 -- UnexpectedChar 'x'
+--
+-- >>> parse lambdaP "λx..x"
+-- UnexpectedChar '.'
+--
+-- >>> parse shortLambdaP "λxyz"
+-- UnexpectedEof
 lambdaP :: Parser Lambda
 lambdaP = undefined
 
@@ -78,6 +90,9 @@ lambdaP = undefined
 --
 -- >>> parse logicP "True and"
 -- Result >< (\xy.(\btf.btf)xy\_f.f)\t_.t
+--
+-- >>> parse logicP "True and False"
+-- Result >< (\xy.(\btf.btf)xy\_f.f)(\t_.t)\_f.f
 --
 -- >>> parse logicP "not False"
 -- Result >< (\x.(\btf.btf)x(\_f.f)\t_.t)\_f.f

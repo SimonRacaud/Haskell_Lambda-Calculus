@@ -28,6 +28,7 @@ library
       Data.Lambda
       Parser
       LambdaParser
+      LongLambdaP
   other-modules:
       Paths_2022Assignment2
   hs-source-dirs:
