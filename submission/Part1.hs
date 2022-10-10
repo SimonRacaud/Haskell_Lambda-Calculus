@@ -1,10 +1,8 @@
-module MyLambdaParser where
+module Part1 where
 
 import Parser
 import Data.Builder
 import Data.Lambda
-
-import Debug.Trace
 
 {- 
     Part I
@@ -32,7 +30,7 @@ applicationTerm = foldBuilders $ list1 item
 
 foldBuilders :: Parser [Builder] -> Parser Builder
 foldBuilders list = fold <$> list
-    where fold (x:xs) = foldl (ap) x xs
+    where fold (x:xs) = foldl (ap) x xs -- Append builders from left to right
 
 expression :: Parser Builder
 expression = applicationTerm ||| function
@@ -44,13 +42,13 @@ variables :: Parser (Builder -> Builder)
 variables = do
     letters <- list1 letter
     return $ foldVariables letters
-    where foldVariables (x:xs) = foldl (\a v -> a . (lam v)) (lam x) xs
+    where foldVariables (x:xs) = foldl (\a v -> a . (lam v)) (lam x) xs -- Append variables from left to right
 
 terms :: Parser Builder
 terms = do
     letters <- list1 letter
     return $ foldTerms letters
-    where foldTerms (x:xs) = foldl (\a v -> a `ap` (term v)) (term x) xs
+    where foldTerms (x:xs) = foldl (\a v -> a `ap` (term v)) (term x) xs -- Append terms from left to right
 
 letter :: Parser Char
 letter = oneof "abcdefghijklmnopqrstuvwxyz"
