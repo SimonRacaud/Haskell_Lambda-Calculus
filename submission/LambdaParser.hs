@@ -34,7 +34,7 @@ import LongLambdaP
 -- Result >< (\x.xx)\x.xx
 --
 longLambdaP :: Parser Lambda
-longLambdaP = build <$> functionList
+longLambdaP = build <$> lambda
 
 -- | Parses a string representing a lambda calculus expression in short form
 --
@@ -61,7 +61,7 @@ longLambdaP = build <$> functionList
 -- UnexpectedChar '\955'
 --
 shortLambdaP :: Parser Lambda
-shortLambdaP = build <$> (functionList ||| function)
+shortLambdaP = build <$> (lambda ||| function)
 
 -- | Parses a string representing a lambda calculus expression in short or long form
 -- (OLD) parse lambdaP "xx"

@@ -11,13 +11,13 @@ import Debug.Trace
     Lambda expressions Parser 
 -}
 
-functionList :: Parser Builder
-functionList =
-    let funcList = foldBuilders $ list1 functionB
+lambda :: Parser Builder
+lambda =
+    let funcList = foldBuilders $ list1 wrappedFunction
     in ((ap <$> funcList) <*> function) ||| funcList
 
-functionB :: Parser Builder
-functionB = (between (is '(') (is ')') function)
+wrappedFunction :: Parser Builder
+wrappedFunction = (between (is '(') (is ')') function)
 
 function :: Parser Builder
 function =  do
