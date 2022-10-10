@@ -2,44 +2,55 @@ module LongLambdaP where
 
 import Parser
 import Data.Builder
+import Data.Lambda
+
+import Debug.Trace
 
 {- 
-    Part I - Exercice 1
-    Parser for verbose lambda expressions
+    Part I
+    Lambda expressions Parser 
 -}
 
--- Construct parsers for lambda calculus expression components 
---      (“λ”, “.”, “(“, “)”, “x”, “y”, “z”, etc.)
+functionList :: Parser Builder
+functionList =
+    let funcList = foldBuilders $ list1 functionB
+    in ((ap <$> funcList) <*> function) ||| funcList
 
--- parse (build <$> pLambda) "(λx.x)"
+functionB :: Parser Builder
+functionB = (between (is '(') (is ')') function)
 
-pLambda :: Parser Builder
-pLambda = (between (is '(') (is ')') lambda) ||| lambda
-
-lambda :: Parser Builder
-lambda = do
+function :: Parser Builder
+function =  do
     _ <- is 'λ'
-    params <- getParams
+    params <- variables
     _ <- is '.'
-    body <- getBody
+    body <- applicationTerm
     return $ params body
 
-getParams :: Parser (Builder -> Builder)
-getParams = do
-    letters <- munch1 isLetter
-    return $ parseParams letters
-    where 
-        parseParams (x:xs) = foldr (\v a -> a . (lam v)) (lam x) xs
+applicationTerm :: Parser Builder
+applicationTerm = foldBuilders $ list1 item
 
-getLetter :: Parser Char
-getLetter = oneof "abcdefghijklmnopqrstuvwxyz"
+foldBuilders :: Parser [Builder] -> Parser Builder
+foldBuilders list = fold <$> list
+    where fold (x:xs) = foldr (flip ap) x xs
 
-isLetter :: Char -> Bool
-isLetter c = c >= 'a' && c <= 'z'
+expression :: Parser Builder
+expression = applicationTerm ||| function
 
-getBody :: Parser Builder
-getBody = parseBody <$> list1 getBodyEl -- TODO : to impove
-    where parseBody (x:xs) = foldr (\v a -> ap v a) x xs
+item :: Parser Builder
+item = terms ||| (between (is '(') (is ')') expression)
 
-getBodyEl :: Parser Builder
-getBodyEl = pLambda ||| (term <$> getLetter)
+variables :: Parser (Builder -> Builder)
+variables = do
+    letters <- list1 letter
+    return $ foldVariables letters
+    where foldVariables (x:xs) = foldr (\v a -> a . (lam v)) (lam x) xs
+
+terms :: Parser Builder
+terms = do
+    letters <- list1 letter
+    return $ foldTerms letters
+    where foldTerms (x:xs) = foldr (\v a -> a `ap` (term v)) (term x) xs
+
+letter :: Parser Char
+letter = oneof "abcdefghijklmnopqrstuvwxyz"

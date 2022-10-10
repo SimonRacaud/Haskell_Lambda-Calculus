@@ -30,45 +30,56 @@ import LongLambdaP
 -- >>> parse longLambdaP "(λx(λy.x))"
 -- UnexpectedChar '('
 --
--- >>> parse longLambdaP "xx"
--- UnexpectedChar 'x'
+-- >>> parse longLambdaP "(λx.xx)(λx.xx)"
+-- Result >< (\x.xx)\x.xx
+--
 longLambdaP :: Parser Lambda
--- longLambdaP = P $ \str -> Result str $ build $ lam 'x' (term 'x')
-longLambdaP = build <$> pLambda
+longLambdaP = build <$> functionList
 
 -- | Parses a string representing a lambda calculus expression in short form
 --
--- >>> parse shortLambdaP "λx.xx"
--- Result >< \x.xx
---
 -- >>> parse shortLambdaP "λxy.xy(xx)"
 -- Result >< \xy.xy(xx)
+--
 --
 -- >>> parse shortLambdaP "λx.x(λy.yy)"
 -- Result >< \x.x\y.yy
 --
 -- >>> parse shortLambdaP "(λx.x)(λy.yy)"
 -- Result >< (\x.x)\y.yy
+--
+-- >>> parse shortLambdaP "(λx.x)(λy.yy)λz.z"
+-- Result >< (\x.x)(\y.yy)\z.z
+--
+-- >>> parse shortLambdaP "λxyz"
+-- UnexpectedEof
+--
+-- >>> parse shortLambdaP "λx.xx"
+-- Result >< \x.xx
+--
+-- >>> parse shortLambdaP "λλxy.(xx)xy"
+-- UnexpectedChar '\955'
+--
 shortLambdaP :: Parser Lambda
-shortLambdaP = undefined
+shortLambdaP = build <$> (functionList ||| function)
 
 -- | Parses a string representing a lambda calculus expression in short or long form
+-- (OLD) parse lambdaP "xx"
+-- UnexpectedChar 'x'
+--
+-- >>> parse shortLambdaP "λxyz"
+-- UnexpectedEof
+
 -- >>> parse lambdaP "λx.xx"
 -- Result >< \x.xx
 --
 -- >>> parse lambdaP "(λx.xx)"
 -- Result >< \x.xx
 --
--- >>> parse lambdaP "xx"
--- UnexpectedChar 'x'
---
 -- >>> parse lambdaP "λx..x"
 -- UnexpectedChar '.'
---
--- >>> parse shortLambdaP "λxyz"
--- UnexpectedEof
 lambdaP :: Parser Lambda
-lambdaP = undefined
+lambdaP = shortLambdaP ||| longLambdaP
 
 {-|
     Part 2
@@ -88,9 +99,6 @@ lambdaP = undefined
 -- >>> lamToBool <$> parse logicP "not not not False"
 -- Result >< Just True
 --
--- >>> parse logicP "True and"
--- Result >< (\xy.(\btf.btf)xy\_f.f)\t_.t
---
 -- >>> parse logicP "True and False"
 -- Result >< (\xy.(\btf.btf)xy\_f.f)(\t_.t)\_f.f
 --
@@ -98,7 +106,6 @@ lambdaP = undefined
 -- Result >< (\x.(\btf.btf)x(\_f.f)\t_.t)\_f.f
 -- >>> lamToBool <$> parse logicP "if True and not False then True or True else False"
 -- Result >< Just True
-
 logicP :: Parser Lambda
 logicP = undefined
 
