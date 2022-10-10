@@ -41,7 +41,6 @@ longLambdaP = build <$> lambda
 -- >>> parse shortLambdaP "λxy.xy(xx)"
 -- Result >< \xy.xy(xx)
 --
---
 -- >>> parse shortLambdaP "λx.x(λy.yy)"
 -- Result >< \x.x\y.yy
 --
@@ -64,12 +63,12 @@ shortLambdaP :: Parser Lambda
 shortLambdaP = build <$> (lambda ||| function)
 
 -- | Parses a string representing a lambda calculus expression in short or long form
--- (OLD) parse lambdaP "xx"
+-- parse lambdaP "xx"
 -- UnexpectedChar 'x'
 --
 -- >>> parse shortLambdaP "λxyz"
 -- UnexpectedEof
-
+--
 -- >>> parse lambdaP "λx.xx"
 -- Result >< \x.xx
 --
@@ -78,8 +77,12 @@ shortLambdaP = build <$> (lambda ||| function)
 --
 -- >>> parse lambdaP "λx..x"
 -- UnexpectedChar '.'
+--
+-- >>> parse lambdaP "λx.A"
+-- UnexpectedChar 'A'
+--
 lambdaP :: Parser Lambda
-lambdaP = shortLambdaP ||| longLambdaP
+lambdaP = longLambdaP ||| shortLambdaP  
 
 {-|
     Part 2
