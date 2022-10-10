@@ -4,7 +4,8 @@ import Parser
 import Data.Lambda
 import Data.Builder
 
-import MyLambdaParser
+import Part1
+import Part2Logic
 
 -- You can add more imports if you need them
 
@@ -122,10 +123,12 @@ lambdaP = longLambdaP ||| shortLambdaP
 --
 -- >>> parse logicP "not False"
 -- Result >< (\x.(\btf.btf)x(\_f.f)\t_.t)\_f.f
--- >>> lamToBool <$> parse logicP "if True and not False then True or True else False"
 -- Result >< Just True
+--
 logicP :: Parser Lambda
-logicP = undefined
+logicP = P $ \str -> case parse exprParser str of
+        (Result _ r) -> Result "" $ build $ parseExpr r
+        (Error e) -> Error e 
 
 -- | Exercise 2
 
