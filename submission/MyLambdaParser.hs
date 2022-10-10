@@ -1,4 +1,4 @@
-module LongLambdaP where
+module MyLambdaParser where
 
 import Parser
 import Data.Builder
@@ -32,7 +32,7 @@ applicationTerm = foldBuilders $ list1 item
 
 foldBuilders :: Parser [Builder] -> Parser Builder
 foldBuilders list = fold <$> list
-    where fold (x:xs) = foldr (flip ap) x xs
+    where fold (x:xs) = foldl (ap) x xs
 
 expression :: Parser Builder
 expression = applicationTerm ||| function
@@ -44,13 +44,13 @@ variables :: Parser (Builder -> Builder)
 variables = do
     letters <- list1 letter
     return $ foldVariables letters
-    where foldVariables (x:xs) = foldr (\v a -> a . (lam v)) (lam x) xs
+    where foldVariables (x:xs) = foldl (\a v -> a . (lam v)) (lam x) xs
 
 terms :: Parser Builder
 terms = do
     letters <- list1 letter
     return $ foldTerms letters
-    where foldTerms (x:xs) = foldr (\v a -> a `ap` (term v)) (term x) xs
+    where foldTerms (x:xs) = foldl (\a v -> a `ap` (term v)) (term x) xs
 
 letter :: Parser Char
 letter = oneof "abcdefghijklmnopqrstuvwxyz"

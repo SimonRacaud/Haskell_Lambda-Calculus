@@ -4,7 +4,7 @@ import Parser
 import Data.Lambda
 import Data.Builder
 
-import LongLambdaP
+import MyLambdaParser
 
 -- You can add more imports if you need them
 
@@ -80,6 +80,21 @@ shortLambdaP = build <$> (lambda ||| function)
 --
 -- >>> parse lambdaP "λx.A"
 -- UnexpectedChar 'A'
+--
+-- >>> parse lambdaP "λxyz.xyz"
+-- Result >< \xyz.xyz
+--
+-- >>> parse lambdaP "(λb.(λt.(λf.btf)))"
+-- Result >< \btf.btf
+--
+-- >>> parse lambdaP "λxy.(xx)y"
+-- Result >< \xy.xxy
+--
+-- >>> parse lambdaP "λxy.x(xy)"
+-- Result >< \xy.x(xy)
+--
+-- >>> parse lambdaP "λb.λt.λf.btf"
+-- Result >< \btf.btf
 --
 lambdaP :: Parser Lambda
 lambdaP = longLambdaP ||| shortLambdaP  

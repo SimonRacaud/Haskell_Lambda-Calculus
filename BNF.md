@@ -10,6 +10,9 @@
 
 <item> ::= <terms> | "(" <expression> ")"
 
+// <item> ::= <terms> | "(" <expression> ")" | <expression> ????
+// ==> "λb.λt.λf.btf"
+
 <expression> ::= <application-term> | <function>
 
 <variables> ::= <letter> <variables> | <letter>
