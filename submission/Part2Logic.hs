@@ -26,13 +26,6 @@ import Debug.Trace
     <duop> ::= "and" | "or"
 -}
 
--- TODO: Temporary:
--- Value: True, False, 
--- Suffix cond: and, or, 
--- Prefix cond: not, 
--- Cond: if (...) then (...) else (...)
--- Parses expressions with the correct order of operations ( “()” -> “not” -> “and” -> “or”)
-
 ---- [ Expression builders ]
 
 -- λxy.x
@@ -78,7 +71,7 @@ data Stmt = Expr LogicExpr
 logicParser :: Parser Builder
 logicParser = do
     tree <- stmtParser
-    case parseStmt tree of -- TODO : debug trace {- trace (show tree) $ -}
+    case parseStmt tree of
         (Just a) -> pure $ a
         Nothing -> Parser.fail UnexpectedEof -- Expression resolution failure
 
