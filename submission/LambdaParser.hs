@@ -123,12 +123,36 @@ lambdaP = longLambdaP ||| shortLambdaP
 --
 -- >>> parse logicP "not False"
 -- Result >< (\x.(\btf.btf)x(\_f.f)\t_.t)\_f.f
+--
+-- >>> lamToBool <$> parse logicP "if True and not False then True or True else False"
+-- Result >< Just True
+--
+-- >>> parse logicP "True and not not not False"
+-- Result >< (\xy.(\btf.btf)xy\_f.f)(\t_.t)((\x.(\btf.btf)x(\_f.f)\t_.t)((\x.(\btf.btf)x(\_f.f)\t_.t)((\x.(\btf.btf)x(\_f.f)\t_.t)\_f.f)))
+--
+-- >>> lamToBool <$> parse logicP "True and not not not False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse logicP "True and not not False"
+-- Result >< Just False
+--
+-- >>> lamToBool <$> parse logicP "True or not not False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse logicP "True or False and not not False or False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse logicP "if True and not False then if True and not False then True or True else False else False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse logicP "if True and not False then (if True and not False then True or True else False) else False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse logicP "not  True and False or  True"
 -- Result >< Just True
 --
 logicP :: Parser Lambda
-logicP = P $ \str -> case parse exprParser str of
-        (Result _ r) -> Result "" $ build $ parseExpr r
-        (Error e) -> Error e 
+logicP = build <$> logicParser
 
 -- | Exercise 2
 

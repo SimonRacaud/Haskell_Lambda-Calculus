@@ -3,6 +3,8 @@ module Part2Logic where
 import Parser
 import Data.Builder
 
+import Debug.Trace
+
 {-
     Part II - parse arithmetic and logical expressions 
 -}
@@ -12,12 +14,13 @@ import Data.Builder
 
 {- [BNF]
 
-    <stmt> ::= <ifCond> | <expr>
+    <stmt> ::= <ifCond> |  '(' <ifCond> ')' | <expr>
 
     <ifCond> ::= "if" <expr> "then" <stmt> "else" <stmt>
 
     <expr> ::= <param> <duop> <expr> | <unop> <expr> | '(' <expr> ')' | <bool>
     <param> ::=  '(' <expr> ')' | <bool>
+
     <bool> ::= "True" | "False"
     <unop> ::= "not"
     <duop> ::= "and" | "or"
@@ -72,48 +75,63 @@ data Stmt = Expr LogicExpr
 
 ---- [ Parser ]
 
--- logicParser :: Parser Builder
--- logicParser = do
---     tree <- stmtParser
---     pure $ genIf
+logicParser :: Parser Builder
+logicParser = do
+    tree <- stmtParser
+    case parseStmt tree of -- TODO : debug trace {- trace (show tree) $ -}
+        (Just a) -> pure $ a
+        Nothing -> Parser.fail UnexpectedEof -- Expression resolution failure
 
--- parseStmt :: Stmt -> Builder
--- parseStmt (Expr e) = parseExpr e
--- parseStmt (If c a b) = undefined -- TODO ...
+parseStmt :: Stmt -> Maybe Builder
+parseStmt (Expr e) = parseExpr e
+parseStmt (If c a b) = parseIfCond c a b
 
-parseExpr :: LogicExpr -> Builder
-parseExpr expr = convert $ parseOr $ parseAnd $ parseNot $ parseBracket expr
-    where convert (Var a) = a
-          convert _ = undefined -- should not happen
+parseIfCond :: LogicExpr -> Stmt -> Stmt -> Maybe Builder
+parseIfCond c a b = do
+    parseExpr c >>= (\cond ->
+        parseStmt a >>= (\pos ->
+            parseStmt b >>= (\neg ->
+                Just $ ((genIf `ap` cond) `ap` pos) `ap` neg
+                )))
 
-parseBracket :: LogicExpr -> LogicExpr
-parseBracket (SubExpr e) = Var $ parseExpr e
-parseBracket (Uno op a) = Uno op (parseBracket a)
-parseBracket (Duo op a b) = Duo op (parseBracket a) (parseBracket b)
-parseBracket a = id a -- do nothing
+parseExpr :: LogicExpr -> Maybe Builder
+parseExpr expr = convert $ parseOr <$> parseAnd <$> parseNot <$> parseBracket expr
+    where 
+        convert :: Maybe LogicExpr -> Maybe Builder
+        convert (Just (Var a)) = Just a
+        convert a = trace ("Fail to reduce expression: "++show a) Nothing
+
+parseBracket :: LogicExpr -> Maybe LogicExpr
+parseBracket (SubExpr e) = Var <$> parseExpr e -- Parse expression
+parseBracket (Uno op a) = (Uno op) <$> (parseBracket a) -- Propagate
+parseBracket (Duo op a b) = (Duo op) <$> (parseBracket a) <*> (parseBracket b) -- Propagate
+parseBracket a = Just a -- do nothing
 
 parseNot :: LogicExpr -> LogicExpr
-parseNot (Uno _ (Var b)) = Var $ genNot `ap` b
-parseNot (Uno _ (Uno _ b)) = Var $ app (parseNot b)
-                            where app (Var v) = genNot `ap` (genNot `ap` v)
-                                  app (Uno _ v) = genNot `ap` (genNot `ap` (app (parseNot v)))
-                                  app _ = undefined -- unexpected error
-parseNot (Uno _ (Duo op (Var a) b)) = Duo op (Var $ genNot `ap` a) (parseNot b)
-parseNot (Duo op a b) = Duo op (parseNot a) (parseNot b)
+parseNot (Uno _ (Var b)) = Var $ genNot `ap` b -- Parse data
+parseNot (Uno _ (Uno _ b)) = applyNot $ parseNot b
+    where 
+        applyNot :: LogicExpr -> LogicExpr
+        applyNot (Var a) = Var $ genNot `ap` (genNot `ap` a)
+        applyNot (Duo op (Var a) c) = Duo op (Var $ genNot `ap` (genNot `ap` a)) c
+        applyNot e = trace ("parseNot: unexpected error. " ++ (show e)) (error "internal error")
+parseNot (Uno _ (Duo op (Var a) b)) = Duo op (Var $ genNot `ap` a) (parseNot b) -- Parse data & Propagate
+parseNot (Duo op a b) = Duo op (parseNot a) (parseNot b) -- Propagate
 parseNot a = id a -- do nothing
 
 parseAnd :: LogicExpr -> LogicExpr
-parseAnd (Duo And (Var a) (Var b)) = Var $ genAnd `ap` a `ap` b
-parseAnd (Duo And (Var a) (Duo op (Var b) c)) = Duo op (Var $ a `ap` b) (parseAnd c)
--- parseAnd (Duo And a b) = Var $ genAnd `ap` (parseAnd a) `ap` (parseAnd b)
-    -- where parseSubDuo (Duo Or a b) = parseSubDuo a
-parseAnd (Duo Or a b) = Duo Or (parseAnd a) (parseAnd b)
+parseAnd (Duo And (Var a) (Var b)) = Var $ genAnd `ap` a `ap` b -- Parse data
+parseAnd (Duo And (Var a) (Duo op (Var b) c)) = Duo op (Var $ genAnd `ap` a `ap` b) (parseAnd c) -- Parse data & Propagate
+parseAnd (Duo Or a b) = Duo Or (parseAnd a) (parseAnd b) -- Propagate
 parseAnd a = id a -- do nothing
 
--- TODO: Memo doing => parseStmt + test for error
-
 parseOr :: LogicExpr -> LogicExpr
-parseOr (Duo Or (Var a) (Var b)) = Var $ genOr `ap` a `ap` b
+parseOr (Duo Or (Var a) (Var b)) = Var $ genOr `ap` a `ap` b -- Parse data
+parseOr (Duo Or (Var a) b) = Var $ genOr `ap` a `ap` (applyOr $ parseOr b) -- Resolve sub-expressions
+    where
+        applyOr :: LogicExpr -> Builder
+        applyOr (Var v) = v
+        applyOr e = trace ("parseOr: unexpected error. " ++ (show e)) (error "internal error")
 parseOr x = id x -- Do nothing
 
 --- Parse the input to a tree of statements and expressions
@@ -125,16 +143,20 @@ parseOr x = id x -- Do nothing
 --- Result >< Expr (Uno Not (Uno Not (Var True)))
 ---
 stmtParser :: Parser Stmt
-stmtParser = ifCondParser ||| (Expr <$> exprParser)
+stmtParser = spaces *>
+    (ifCondParser ||| (between (is '(') (is ')') ifCondParser) ||| (Expr <$> exprParser))
 
 ifCondParser :: Parser Stmt
 ifCondParser = do
-    _ <- spaces -- skip spaces
     _ <- string "if"
     cond <- exprParser
+    _ <- spaces -- skip spaces
     _ <- string "then"
+    _ <- spaces -- skip spaces
     positif <- stmtParser
+    _ <- spaces -- skip spaces
     _ <- string "else"
+    _ <- spaces -- skip spaces
     negatif <- stmtParser
     pure $ If cond positif negatif
 
@@ -182,64 +204,3 @@ orParser = do
 boolParser :: Parser LogicExpr
 boolParser = (string "True" *> (pure $ Var genTrue)) 
             ||| (string "False" *> (pure $ Var genFalse))
-
--- data LogicTree a = Empty
---             | List [LogicTree a] -- Used before evaluating condition priorities
---             | Bool a -- True or False
---             | Not a (LogicTree a)
---             | And a (LogicTree a) (LogicTree a) 
---             | Or a (LogicTree a) (LogicTree a)
---             | If a (LogicTree a) (LogicTree a) (LogicTree a)
-
--- parseTerms :: Parser (LogicTree Builder)
--- parseTerms = list1 parseTerm >>= (\list -> pure $ List list)
-
--- parseTerm :: Parser (LogicTree Builder)
--- parseTerm = parseTrue 
---                 ||| parseFalse 
---                 ||| parseAnd 
---                 ||| parseOr 
---                 ||| parseParentheses
---                 ||| parseNot
---                 ||| parseIf
-
--- parseParentheses :: Parser (LogicTree Builder)
--- parseParentheses = do
---     expr <- between (is '(') (is ')') parseTerms
---     pure $ expr
-
--- parseTrue :: Parser (LogicTree Builder)
--- parseTrue = do 
---     _ <- string "True"
---     pure $ Bool $ genTrue
-
--- parseFalse :: Parser (LogicTree Builder)
--- parseFalse = do
---     _ <- string "False"
---     pure $ Bool $ genFalse
-
--- -- λxy. IF x y FALSE
--- parseAnd :: Parser (LogicTree Builder)
--- parseAnd = do
---     _ <- string "and"
---     pure $ And (genAnd) Empty Empty
-
--- parseOr :: Parser (LogicTree Builder)
--- parseOr = do
---     _ <- string "or"
---     pure $ Or (genOr) Empty Empty
-
--- parseNot :: Parser (LogicTree Builder)
--- parseNot = do
---     _ <- string "not"
---     pure $ Not (genNot) Empty
-
--- parseIf :: Parser (LogicTree Builder)
--- parseIf = do
---     _ <- string "if"
---     cond <- list1 parseTerm
---     _ <- string "then"
---     positif <- list1 parseTerm
---     _ <- string "else"
---     negatif <- list1 parseTerm
---     pure $ If (genIf) (List cond) (List positif) (List negatif)

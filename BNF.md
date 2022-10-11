@@ -46,7 +46,7 @@
 
 ###
 
-<stmt> ::= <ifCond> | <expr>
+<stmt> ::= <ifCond> |  '(' <ifCond> ')' | <expr>
 
 <ifCond> ::= "if" <expr> "then" <stmt> "else" <stmt>
 
@@ -58,29 +58,3 @@
 <bool> ::= "True" | "False"
 <unop> ::= "not"
 <duop> ::= "and" | "or"
-
-
->>> not (not True) and False
-(Uno Not 
-    (Duo And 
-        (SubExpr 
-            (Uno Not 
-                (Var True)
-            )
-        ) 
-        (Var False)
-    )
-)
-
->>> not ( not True) and False or True
-(Uno Not 
-    (Duo And 
-        (SubExpr 
-            (Uno Not (Var True))
-        ) 
-        (Duo Or 
-            (Var False) 
-            (Var True)
-        )
-    )
-)
