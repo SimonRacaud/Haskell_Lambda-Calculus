@@ -9,9 +9,9 @@ version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/githubuser/2022Assignment2#readme>
 homepage:       https://github.com/githubuser/2022Assignment2#readme
 bug-reports:    https://github.com/githubuser/2022Assignment2/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2022 Author name here
+author:         Simon RACAUD
+maintainer:     srac0005@student.monash.edu
+copyright:      2022 Simon Racaud
 license:        BSD3
 build-type:     Simple
 extra-source-files:
@@ -28,7 +28,8 @@ library
       Data.Lambda
       Parser
       LambdaParser
-      LongLambdaP
+      Part1
+      Part2Logic
   other-modules:
       Paths_2022Assignment2
   hs-source-dirs:
