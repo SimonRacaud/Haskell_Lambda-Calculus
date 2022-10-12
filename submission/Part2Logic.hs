@@ -24,6 +24,8 @@ import Debug.Trace
     <bool> ::= "True" | "False"
     <unop> ::= "not"
     <duop> ::= "and" | "or"
+
+    Nota: That bnf don't takes into account spaces.
 -}
 
 ---- [ Expression builders ]
