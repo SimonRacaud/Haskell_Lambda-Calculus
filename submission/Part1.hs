@@ -53,8 +53,9 @@ applicationTerm :: Parser Builder
 applicationTerm = foldBuilders $ list1 item
 
 foldBuilders :: Parser [Builder] -> Parser Builder
-foldBuilders list = fold <$> list
+foldBuilders lst = fold <$> lst
     where fold (x:xs) = foldl (ap) x xs -- Append builders from left to right
+          fold _ = error "Programming error"
 
 expression :: Parser Builder
 expression = applicationTerm ||| function
@@ -67,12 +68,14 @@ variables = do
     letters <- list1 letter
     return $ foldVariables letters
     where foldVariables (x:xs) = foldl (\a v -> a . (lam v)) (lam x) xs -- Append variables from left to right
+          foldVariables _ = error "Programming error"
 
 terms :: Parser Builder
 terms = do
     letters <- list1 letter
     return $ foldTerms letters
     where foldTerms (x:xs) = foldl (\a v -> a `ap` (term v)) (term x) xs -- Append terms from left to right
+          foldTerms _ = error "Programming error"
 
 letter :: Parser Char
 letter = oneof "abcdefghijklmnopqrstuvwxyz"
