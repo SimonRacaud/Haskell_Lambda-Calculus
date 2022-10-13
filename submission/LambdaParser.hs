@@ -6,6 +6,7 @@ import Data.Builder
 
 import Part1
 import Part2Logic
+import Part2Arithmetic
 
 -- You can add more imports if you need them
 
@@ -59,6 +60,15 @@ longLambdaP = build <$> lambda
 --
 -- >>> parse shortLambdaP "λλxy.(xx)xy"
 -- UnexpectedChar '\955'
+--
+-- >>> parse shortLambdaP "(λx.x)λy.yy"
+-- Result >< (\x.x)\y.yy
+--
+-- >>> parse shortLambdaP "(λx.x)(λy.y)(λx.xx)"
+-- Result >< (\x.x)(\y.y)\x.xx
+--
+-- >>> parse shortLambdaP "λx.xλy.yλz.zz"
+-- Result >< \x.x\y.y\z.zz
 --
 shortLambdaP :: Parser Lambda
 shortLambdaP = build <$> (lambda ||| function)
@@ -158,7 +168,7 @@ logicP = build <$> logicParser
 
 -- | The church encoding for arithmetic operations are given below (with x and y being church numerals)
 
--- | x + y = add = λxy.y succ m
+-- | x + y = add = λxy.y succ x
 -- | x - y = minus = λxy.y pred x
 -- | x * y = multiply = λxyf.x(yf)
 -- | x ** y = exp = λxy.yx
@@ -175,7 +185,7 @@ logicP = build <$> logicParser
 -- >>> lamToInt <$> parse basicArithmeticP "5 + 9 - 3 + 2"
 -- Result >< Just 13
 basicArithmeticP :: Parser Lambda
-basicArithmeticP = undefined
+basicArithmeticP = arithmeticParser
 
 -- | Parse arithmetic expressions involving + - * ** () and natural numbers into lambda calculus
 -- >>> lamToInt <$> parse arithmeticP "5 + 9 * 3 - 2**3"
@@ -183,8 +193,30 @@ basicArithmeticP = undefined
 --
 -- >>> lamToInt <$> parse arithmeticP "100 - 4 * 2**(4-1)"
 -- Result >< Just 68
+--
+-- >>> lamToInt <$> parse arithmeticP "1 + 42 * 42 * 2 * 42"
+-- Result >< Just 148177
+--
+-- >>> lamToInt <$> parse arithmeticP "1 - 2"
+-- Result >< Just 0
+--
+-- >>> lamToInt <$> parse arithmeticP "2**8"
+-- Result >< Just 256
+--
+-- >>> lamToInt <$> parse arithmeticP "2 **8 - 1"
+-- Result >< Just 255
+--
+-- >>> lamToInt <$> parse arithmeticP "2 **(8 - 1)"
+-- Result >< Just 128
+--
+-- >>> lamToInt <$> parse arithmeticP "2* 2 **(8 - 1)"
+-- Result >< Just 256
+--
+-- >>> parse arithmeticP "2* 2 ** /"
+-- Result >< UnexpectedChar '/'
+--
 arithmeticP :: Parser Lambda
-arithmeticP = undefined
+arithmeticP = arithmeticParser
 
 
 -- | Exercise 3

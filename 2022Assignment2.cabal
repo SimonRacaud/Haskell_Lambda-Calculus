@@ -29,6 +29,7 @@ library
       Parser
       LambdaParser
       Part1
+      Part2Arithmetic
       Part2Logic
   other-modules:
       Paths_2022Assignment2

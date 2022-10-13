@@ -1,16 +1,13 @@
 module Part2Arithmetic where
 
 import Parser
+import Data.Lambda
 import Data.Builder
 
 import Text.Read
 import Data.Char
 
 import Debug.Trace
-
--- TODO: temp memo
--- (+, -, *, **, ()) 
--- Order: () -> ** -> * -> - -> +
 
 {-  BNF:
 
@@ -32,7 +29,7 @@ import Debug.Trace
 
 ---- [ Data structures ]
 
-data Expr = Nb Double -- Number
+data Expr = Nb Builder -- Number
             | Calc Op Expr Expr -- Operation
             | SubExpr Expr -- Bracket
             deriving Show
@@ -42,9 +39,19 @@ data Op = Plus | Minus | Power | Multi
 
 ---- [ Expression evaluator ]
 
---- >>> resolve <$> parse parseExpression "9 * 2 - 3 - 4 * 2 + 1 + 2 - 1 * (1 + 2)"
---- Result >< Nb 7.0
+--- >>> lamToInt <$> parse arithmeticParser "9 * 2 + 3 + 4 * 2 + 1 + 2 + 1 * (1 + 2)"
+--- Result >< Just 35
 ---
+arithmeticParser :: Parser Lambda
+arithmeticParser = do
+    tree <- parseExpression
+    execResolver tree
+    where
+        execResolver :: Expr -> Parser Lambda
+        execResolver tree = case resolve tree of
+            (Nb value) -> pure $ build $ value
+            _ -> Parser.fail UnexpectedEof -- Fail to resolve expression
+
 resolve :: Expr -> Expr
 resolve (SubExpr a) = resolve a
 resolve expr = (resolveOperator Plus) 
@@ -67,32 +74,32 @@ resolveOperator op (Calc operator a b) = if op == operator
 
 -- Resolve an operation (Calc)
 resolveOperation :: Op -> Expr -> Expr -> Expr
-resolveOperation op (Nb a) (Nb b) = Nb $ (getOperation op) a b
+resolveOperation op (Nb a) (Nb b) = Nb $ solver op a b -- < Resolve operation
 resolveOperation op (SubExpr e) b = resolveOperation op (resolve e) b
 resolveOperation op a (SubExpr e) = resolveOperation op a (resolve e)
 resolveOperation op (Nb a) (Calc o x y) = resolveOperator op $ Calc o (resolveOp x) (resolveOperator op y) 
     where 
-        resolveOp (Nb n) = (Nb $ (getOperation op) a n)
+        resolveOp (Nb n) = (Nb $ solver op a n) -- < Resolve operation
         resolveOp (SubExpr e) = resolveOp (resolve e)
         resolveOp _ = error "this should not happen"
 resolveOperation _ _ _ = error "this should not happen"
 
--- Get the corresponding function related to an Op
-getOperation :: Op -> (Double -> Double -> Double)
-getOperation Plus = (+)
-getOperation Minus = (-)
-getOperation Multi = (*)
-getOperation Power = (**)
+-- Solve an operation between two lambda
+solver :: Op -> Builder -> Builder -> Builder
+solver Plus a b = add `ap` a `ap` b
+solver Minus a b = minus `ap` a `ap` b
+solver Multi a b = multiply `ap` a `ap` b
+solver Power a b = Part2Arithmetic.exp `ap` a `ap` b
 
 ---- [ Operations ]
 
 -- | x + y = add = λxy.y succ x
 add :: Builder
-add = lam 'x' $ lam 'y' $ (term 'y') `ap` succ `ap` (term 'x')
+add = lam 'x' $ lam 'y' $ (term 'y') `ap` Part2Arithmetic.succ `ap` (term 'x')
 
 -- | x - y = minus = λxy.y pred x
 minus :: Builder
-minus = lam 'x' $ lam 'y' $ (term 'y') `ap` pred `ap` (term 'x')
+minus = lam 'x' $ lam 'y' $ (term 'y') `ap` Part2Arithmetic.pred `ap` (term 'x')
 
 -- | x * y = multiply = λxyf.x(yf)
 multiply :: Builder
@@ -112,7 +119,7 @@ pred = lam 'n' $ lam 'f' $ lam 'x' $ (term 'n')
                 `ap` (lam 'g' $ lam 'h' $ (term 'h') `ap` ((term 'g') `ap` (term 'f')))
                 `ap` (lam 'u' (term 'x'))
                 `ap` (lam 'u' (term 'u'))
--- | Note since we haven't encoded negative numbers pred 0 == 0, and m - n (where n > m) = 0
+-- Note: since we haven't encoded negative numbers pred 0 == 0, and m - n (where n > m) = 0
 
 ---- [ Parser ]
 
@@ -141,8 +148,8 @@ parseNumber = do
     convertStr str
     where 
         convertStr :: String -> Parser Expr
-        convertStr str = case (readMaybe str :: Maybe Double) of
-            Just a -> pure (Nb a)
+        convertStr str = case (readMaybe str :: Maybe Int) of
+            Just a -> pure (Nb $ intToLam a)
             Nothing -> Parser.fail $ ExpectedEof str
 
 parseOperation :: String -> Parser Expr
