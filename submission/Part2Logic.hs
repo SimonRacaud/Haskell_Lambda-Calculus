@@ -14,18 +14,18 @@ import Debug.Trace
 
 {- [BNF]
 
-    <stmt> ::= <ifCond> |  '(' <ifCond> ')' | <expr>
+    <stmt> ::= <ifCond> |  "(" <ifCond> ")" | <expr>
 
     <ifCond> ::= "if" <expr> "then" <stmt> "else" <stmt>
 
-    <expr> ::= <param> <duop> <expr> | <unop> <expr> | '(' <expr> ')' | <bool>
-    <param> ::=  '(' <expr> ')' | <bool>
+    <expr> ::= <param> <duop> <expr> | <unop> <expr> | "(" <expr> ")" | <bool>
+    <param> ::=  "(" <expr> ")" | <bool>
 
     <bool> ::= "True" | "False"
     <unop> ::= "not"
     <duop> ::= "and" | "or"
 
-    Nota: That bnf don't takes into account spaces.
+    Nota: For simplicity purpose, spaces have been omitted.
 -}
 
 ---- [ Expression builders ]

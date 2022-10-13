@@ -12,16 +12,11 @@ import Debug.Trace
 {-  BNF:
 
     <expr> ::= <operation> | <bracket> | <number>
-
-    <bracket> ::= '(' <expr> ')'
-    
-    <operation> ::= <param> <op> <bexpr>
-    
-    <param> ::=  <parseBracket> | <number>
-
+    <bracket> ::= "(" <expr> ")"    
+    <operation> ::= <param> <op> <expr>
+    <param> ::=  <bracket> | <number>
     <number> ::= <digit> <number> | <digit>
-
-    <digit> ::= '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+    <digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
     <op> ::= "+" | "-" | "**" | "*"
 
     Nota: For simplicity purpose, spaces have been omitted.
@@ -37,7 +32,7 @@ data Expr = Nb Builder -- Number
 data Op = Plus | Minus | Power | Multi
     deriving (Show, Enum, Eq)
 
----- [ Expression evaluator ]
+---- [ Main function  ]
 
 --- >>> lamToInt <$> parse arithmeticParser "9 * 2 + 3 + 4 * 2 + 1 + 2 + 1 * (1 + 2)"
 --- Result >< Just 35
@@ -51,6 +46,8 @@ arithmeticParser = do
         execResolver tree = case resolve tree of
             (Nb value) -> pure $ build $ value
             _ -> Parser.fail UnexpectedEof -- Fail to resolve expression
+
+---- [ Expression evaluator ]
 
 resolve :: Expr -> Expr
 resolve (SubExpr a) = resolve a
