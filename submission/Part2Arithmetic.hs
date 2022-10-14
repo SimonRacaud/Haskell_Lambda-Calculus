@@ -34,9 +34,9 @@ data Op = Plus | Minus | Power | Multi
 
 ---- [ Main function  ]
 
---- >>> lamToInt <$> parse arithmeticParser "9 * 2 + 3 + 4 * 2 + 1 + 2 + 1 * (1 + 2)"
---- Result >< Just 35
----
+-- >>> lamToInt <$> parse arithmeticParser "9 * 2 + 3 + 4 * 2 + 1 + 2 + 1 * (1 + 2)"
+-- Result >< Just 35
+--
 arithmeticParser :: Parser Lambda
 arithmeticParser = do
     tree <- parseExpression
