@@ -4,9 +4,10 @@ import Parser
 import Data.Lambda
 import Data.Builder
 
-import Part1
-import Part2Logic
-import Part2Arithmetic
+import Part1 (lambda, function)
+import Part2Logic (logicParser)
+import Part2Arithmetic (arithmeticParser)
+import Part2Complex (complexParser)
 
 -- You can add more imports if you need them
 
@@ -194,8 +195,8 @@ basicArithmeticP = arithmeticParser
 -- >>> lamToInt <$> parse arithmeticP "100 - 4 * 2**(4-1)"
 -- Result >< Just 68
 --
--- >>> lamToInt <$> parse arithmeticP "1 + 42 * 42 * 2 * 42"
--- Result >< Just 148177
+-- >>> lamToInt <$> parse arithmeticP "1 + 8 * 8 + 2 * 8"
+-- Result >< Just 81
 --
 -- >>> lamToInt <$> parse arithmeticP "1 - 2"
 -- Result >< Just 0
@@ -212,12 +213,11 @@ basicArithmeticP = arithmeticParser
 -- >>> lamToInt <$> parse arithmeticP "2* 2 **(8 - 1)"
 -- Result >< Just 256
 --
--- >>> parse arithmeticP "2* 2 ** /"
--- Result >< UnexpectedChar '/'
+-- >>> parse arithmeticP "/ 2* 2 ** /"
+-- UnexpectedChar '/'
 --
 arithmeticP :: Parser Lambda
 arithmeticP = arithmeticParser
-
 
 -- | Exercise 3
 
@@ -229,14 +229,57 @@ arithmeticP = arithmeticParser
 -- | The helper function you'll need is:
 -- | isZero = λn.n(λx.False)True
 
+--
 -- >>> lamToBool <$> parse complexCalcP "9 - 2 <= 3 + 6"
 -- Result >< Just True
 --
 -- >>> lamToBool <$> parse complexCalcP "15 - 2 * 2 != 2**3 + 3 or 5 * 3 + 1 < 9"
 -- Result >< Just False
+--
+-- >>> lamToBool <$> parse complexCalcP "not not True"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "not not not True"
+-- Result >< Just False
+--
+-- >>> lamToBool <$> parse complexCalcP "not not not True and True"
+-- Result >< Just False
+--
+-- >>> lamToBool <$> parse complexCalcP "if True or False then False else True"
+-- Result >< Just False
+--
+-- >>> lamToBool <$> parse complexCalcP "1 > 2"
+-- Result >< Just False
+--
+-- >>> lamToBool <$> parse complexCalcP "3 > 2"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "2 > 2"
+-- Result >< Just False
+--
+-- >>> lamToBool <$> parse complexCalcP "1 < 2"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "2 < 2"
+-- Result >< Just False
+--
+-- >>> lamToBool <$> parse complexCalcP "3 < 2"
+-- Result >< Just False
+--
+-- >>> lamToBool <$> parse complexCalcP "1 == 2"
+-- Result >< Just False
+--
+-- >>> lamToBool <$> parse complexCalcP "1 == 1"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "1 != 2"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "1 != 1"
+-- Result >< Just False
+--
 complexCalcP :: Parser Lambda
-complexCalcP = undefined
-
+complexCalcP = complexParser
 
 {-|
     Part 3

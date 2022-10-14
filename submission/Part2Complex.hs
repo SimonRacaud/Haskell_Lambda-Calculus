@@ -231,14 +231,14 @@ solverUnop _ _ = error "Unexpected error"
 leq :: Builder
 leq = lam 'm' $ lam 'n' $ isZero `ap` (Arithm.minus `ap` (term 'm') `ap` (term 'n'))
 
-ueq :: Builder -- (<=)
-ueq = Logic.genOr `ap` greater `ap` eq
+ueq :: Builder -- (a <= b) is the same then (b >= a)
+ueq = lam 'm' $ lam 'n' $ leq `ap` (term 'n') `ap` (term 'm')
 
-greater :: Builder -- (>)
-greater = Logic.genNot `ap` leq
+greater :: Builder -- (>) which is (not <=)
+greater = lam 'm' $ lam 'n' $ Logic.genNot `ap` (leq `ap` (term 'm') `ap` (term 'n'))
 
-lower :: Builder -- (<)
-lower = Logic.genAnd `ap` leq `ap` (Logic.genNot `ap` eq)
+lower :: Builder -- (<) which is (not >=)
+lower =  lam 'm' $ lam 'n' $ Logic.genNot `ap` (ueq `ap` (term 'm') `ap` (term 'n'))
 
 -- | x == y = EQ = λmn.and (LEQ m n) (LEQ n m)
 eq :: Builder
@@ -246,8 +246,8 @@ eq = lam 'm' $ lam 'n' $ (Logic.genAnd
                             `ap` (leq `ap` (term 'm') `ap` (term 'n')) 
                             `ap` (leq `ap` (term 'n') `ap` (term 'm')))
 
-neq :: Builder -- (!=)
-neq = Logic.genNot `ap` eq
+neq :: Builder -- (!=) is literally (not ==)
+neq = lam 'm' $ lam 'n' $ Logic.genNot `ap` (eq `ap` (term 'm') `ap` (term 'n'))
 
 -- | isZero = λn.n(λx.False)True
 isZero :: Builder
@@ -287,7 +287,7 @@ logicDuopParser = parseEachOperator logicDuoOperators duopParser
         duopParser = duoOperationParser logicPrevParamParser logicExprParser
 
 logicUnopParser :: Parser Expr
-logicUnopParser = parseEachOperator logicUnoOperators $ unoOperationParser logicParamParser
+logicUnopParser = parseEachOperator logicUnoOperators $ unoOperationParser logicExprParser
 
 logicPrevParamParser :: Parser Expr
 logicPrevParamParser = subExprParser logicExprParser ||| logicParamParser
