@@ -1,15 +1,17 @@
 module Part2Complex where
 
-import Parser
+import Parser hiding (lower)
 import Data.Lambda
 import Data.Builder
 
-import Part2Arithmetic (minus, add, multiply, exp)
-import Part2Logic (genAnd, genFalse, genTrue, genNot, genOr)
+import qualified Part2Arithmetic as Arithm
+import qualified Part2Logic as Logic
 
 import Data.Char
 import Text.Read
 import Data.List
+
+import Debug.Trace (trace)
 
 {- BNF
     <stmt> ::= <ifCond> |  "(" <ifCond> ")" | <logicExpr> | <arithmExpr>
@@ -108,93 +110,148 @@ strToOp str = case tryEach [arithmOperators, compOperators, logicDuoOperators, l
 
 ---- [ Main function  ]
 
--- complexParser :: Parser Lambda
--- complexParser = do
---     tree <- parseExpression
---     case resolve tree of
---         (Nb value) -> pure $ build $ value
---         _ -> Parser.fail UnexpectedEof -- Fail to resolve expression
+complexParser :: Parser Lambda
+complexParser = do
+    tree <- stmtParser -- Parse string to an expression tree
+    build <$> resolveStmt tree -- Reduce the tree to one lambda expression
+
 
 ---- [ Expression evaluator ]
 
--- resolve :: Expr -> Expr
--- resolve (SubExpr a) = resolve a
--- resolve expr = (resolveOperator UP)
---             $ (resolveOperator LOW)
---             $ (resolveOperator EQU)
---             $ (resolveOperator NEQ)
---             $ (resolveOperator LEQ) 
---             $ (resolveOperator UEQ) 
---             $ (resolveOperator PLUS) 
---             $ (resolveOperator MINUS) 
---             $ (resolveOperator MULT) 
---             $ resolveOperator POW expr
+--- [ Logic layer ]
 
--- --- Resolve a specific calculation for the whole tree
--- resolveOperator :: Op -> Expr -> Expr
--- resolveOperator _ (Nb a) = Nb a
--- resolveOperator _ (SubExpr a) = resolve a
--- resolveOperator op (Calc operator a b) = if op == operator
---     then resolveOperation op a b
---     else Calc operator (propagate a) (propagate b)
---     where
---         propagate :: Expr -> Expr 
---         propagate (SubExpr e) = resolve e
---         propagate (Calc o x y) = resolveOperator op (Calc o x y)
---         propagate x = id x -- do nothing
+traceExpr :: Expr -> (a -> a)
+traceExpr expr = trace ("Fail to resolve expression: " ++ show expr)
 
--- -- Resolve an operation (Calc)
--- resolveOperation :: Op -> Expr -> Expr -> Expr
--- resolveOperation op (Nb a) (Nb b) = Nb $ solver op a b -- < Resolve operation
--- resolveOperation op (SubExpr e) b = resolveOperation op (resolve e) b
--- resolveOperation op a (SubExpr e) = resolveOperation op a (resolve e)
--- resolveOperation op (Nb a) (Calc o x y) = resolveOperator op $ Calc o (resolveOp x) (resolveOperator op y) 
---     where 
---         resolveOp (Nb n) = (Nb $ solver op a n) -- < Resolve operation
---         resolveOp (SubExpr e) = resolveOp (resolve e)
---         resolveOp _ = error "this should not happen"
--- resolveOperation _ _ _ = error "this should not happen"
+-- Resolve statement
+resolveStmt :: Stmt -> Parser Builder
+resolveStmt (Expr e) = toBuilder $ resolve e
+    where 
+        toBuilder (Var v) = pure $ v
+        toBuilder expr = traceExpr expr $ Parser.fail UnexpectedEof -- Fail to resolve expression
+resolveStmt (If c a b) = resolveIfCond c a b
+
+-- resolve 'If then else' condition
+resolveIfCond :: Expr -> Stmt -> Stmt -> Parser Builder
+resolveIfCond c a b = do
+        cond <- (getVar $ resolve c)
+        pos <- resolveStmt a
+        neg <- resolveStmt b
+        pure $ ((Logic.genIf `ap` cond) `ap` pos) `ap` neg
+    where
+        getVar :: Expr -> Parser Builder 
+        getVar (Var v) = pure $ v
+        getVar e = traceExpr e $ Parser.fail UnexpectedEof -- Fail to resolve expression
+    
+--- [ Comparison & Arithmetic Layers ]
+
+resolve :: Expr -> Expr
+resolve (SubExpr a) = resolve a
+resolve expr = (resolveOperator OR)
+            $ (resolveOperator AND)
+            $ (resolveOperator NOT)
+            $ (resolveOperator UP)
+            $ (resolveOperator LOW)
+            $ (resolveOperator EQU)
+            $ (resolveOperator NEQ)
+            $ (resolveOperator LEQ) 
+            $ (resolveOperator UEQ) 
+            $ (resolveOperator PLUS) 
+            $ (resolveOperator MINUS) 
+            $ (resolveOperator MULT) 
+            $ resolveOperator POW expr
+
+--- Resolve a specific calculation for the whole tree
+resolveOperator :: Op -> Expr -> Expr
+resolveOperator _ (Var a) = Var a
+resolveOperator _ (SubExpr a) = resolve a
+resolveOperator op (Duo operator a b) = if op == operator
+    then resolveDuop op a b
+    else Duo operator (propagate op a) (propagate op b)    
+resolveOperator op (Uno operator a) = if op == operator
+    then resolveUnop op a
+    else Uno operator (propagate op a)
+
+-- Propagate resolver to sub-operations and expressions
+propagate :: Op -> Expr -> Expr 
+propagate _ (SubExpr e) = resolve e
+propagate op (Duo o x y) = resolveOperator op (Duo o x y)
+propagate op (Uno o x) = resolveOperator op (Uno o x)
+propagate _ x = id x -- do nothing
+
+-- Resolve an operation (Duo)
+resolveDuop :: Op -> Expr -> Expr -> Expr
+resolveDuop op (Var a) (Var b) = Var $ solverDuop op a b -- Resolve operation
+resolveDuop op (SubExpr e) b = resolveDuop op (resolve e) b -- solve sub-expr
+resolveDuop op a (SubExpr e) = resolveDuop op a (resolve e) -- solve sub-expr
+    -- Resolve dual operation:
+resolveDuop op (Var a) (Duo o x y) = 
+    resolveOperator op $ Duo o (resolveOp x) (resolveOperator op y) 
+    where 
+        -- Solve first parameter of a Duo (either a Var or a SubExpr):
+        resolveOp :: Expr -> Expr
+        resolveOp (Var n) = (Var $ solverDuop op a n) -- < Resolve operation
+        resolveOp (SubExpr e) = resolveOp (resolve e)
+        resolveOp _ = error "this should never happen"
+resolveDuop _ _ _ = error "this should never happen"
+
+resolveUnop :: Op -> Expr -> Expr
+resolveUnop op (Var a) = Var $ solverUnop op a -- Resolve operation
+resolveUnop op (SubExpr e) = resolveUnop op $ resolve e
+resolveUnop op (Duo o a b) = Duo o (resolveUnop op a) (resolveOperator op b)
+resolveUnop op (Uno o a) = resolveUnop op $ resolveUnop o a --go a
+    -- where
+    --     go (Var x) = solverUnop op $ solverUnop o x -- Double Unop
+    --     go (Uno o2 x) = resolveUnop op $ resolveUnop o $ resolveUnop o2 x
+    --     go (Duo o2 x y) = Duo o2 (resolveUnop op $ resolveUnop op x) (resolveOperator op y)
 
 -- Solve an operation between two lambda
--- solver :: Op -> Builder -> Builder -> Builder
--- solver PLUS a b = add `ap` a `ap` b
--- solver MINUS a b = minus `ap` a `ap` b
--- solver MULT a b = multiply `ap` a `ap` b
--- solver POW a b = Part2Arithmetic.exp `ap` a `ap` b
--- solver EQU a b = eq `ap` a `ap` b
--- solver NEQ a b = neq `ap` a `ap` b
--- solver LEQ a b = leq `ap` a `ap` b
--- solver UEQ a b = ueq `ap` a `ap` b
--- solver LOW a b = lower `ap` a `ap` b
--- solver UP a b = upper `ap` a `ap` b
+solverDuop :: Op -> Builder -> Builder -> Builder
+solverDuop PLUS a b = Arithm.add `ap` a `ap` b
+solverDuop MINUS a b = Arithm.minus `ap` a `ap` b
+solverDuop MULT a b = Arithm.multiply `ap` a `ap` b
+solverDuop POW a b = Arithm.exp `ap` a `ap` b
+solverDuop EQU a b = eq `ap` a `ap` b
+solverDuop NEQ a b = neq `ap` a `ap` b
+solverDuop LEQ a b = leq `ap` a `ap` b
+solverDuop UEQ a b = ueq `ap` a `ap` b
+solverDuop LOW a b = lower `ap` a `ap` b
+solverDuop UP a b = greater `ap` a `ap` b
+solverDuop AND a b = Logic.genAnd `ap` a `ap` b
+solverDuop OR a b = Logic.genOr `ap` a `ap` b
+solverDuop _ _ _ = error "Unexpected error"
+
+solverUnop :: Op -> Builder -> Builder
+solverUnop NOT a = Logic.genNot `ap` a
+solverUnop _ _ = error "Unexpected error"
 
 ---- [ Comparison Operations ]
 
 -- | x <= y = LEQ = λmn.isZero (minus m n)
 leq :: Builder
-leq = lam 'm' $ lam 'n' $ isZero `ap` (minus `ap` (term 'm') `ap` (term 'n'))
+leq = lam 'm' $ lam 'n' $ isZero `ap` (Arithm.minus `ap` (term 'm') `ap` (term 'n'))
 
 ueq :: Builder -- (<=)
-ueq = genOr `ap` upper `ap` eq
+ueq = Logic.genOr `ap` greater `ap` eq
 
-upper :: Builder -- (>)
-upper = genNot `ap` leq
+greater :: Builder -- (>)
+greater = Logic.genNot `ap` leq
 
 lower :: Builder -- (<)
-lower = genAnd `ap` leq `ap` (genNot `ap` eq)
+lower = Logic.genAnd `ap` leq `ap` (Logic.genNot `ap` eq)
 
 -- | x == y = EQ = λmn.and (LEQ m n) (LEQ n m)
 eq :: Builder
-eq = lam 'm' $ lam 'n' $ (genAnd 
+eq = lam 'm' $ lam 'n' $ (Logic.genAnd 
                             `ap` (leq `ap` (term 'm') `ap` (term 'n')) 
                             `ap` (leq `ap` (term 'n') `ap` (term 'm')))
 
 neq :: Builder -- (!=)
-neq = genNot `ap` eq
+neq = Logic.genNot `ap` eq
 
 -- | isZero = λn.n(λx.False)True
 isZero :: Builder
-isZero = lam 'n' $ (term 'n') `ap` (lam 'x' genFalse) `ap` genTrue
+isZero = lam 'n' $ (term 'n') `ap` (lam 'x' Logic.genFalse) `ap` Logic.genTrue
 
 ------ [ Parser ]
 
@@ -239,8 +296,8 @@ logicParamParser :: Parser Expr
 logicParamParser = boolParser ||| compExprParser
 
 boolParser :: Parser Expr
-boolParser = (stringTok "True" *> (pure $ Var genTrue)) 
-                ||| (stringTok "False" *> (pure $ Var genFalse)) 
+boolParser = (stringTok "True" *> (pure $ Var Logic.genTrue)) 
+                ||| (stringTok "False" *> (pure $ Var Logic.genFalse)) 
             <* spaces
 
 --- [ Comparison Layer ]
