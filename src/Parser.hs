@@ -146,6 +146,10 @@ spaces = list space
 between :: Parser open -> Parser close -> Parser a -> Parser a
 between fo fc fa = fo *> fa <* fc
 
+-- Parse expression under brackets
+bracket :: Parser a -> Parser a
+bracket = between (is '(') (is ')') 
+
 -- >>> (parserToReadS (get)) "123"
 -- [('1',"23")]
 parserToReadS :: Parser a -> ReadS a
@@ -166,3 +170,123 @@ oneof = satisfy . flip elem
 -- Result >23< '1'
 noneof :: String -> Parser Char
 noneof = satisfy . flip notElem
+
+-- Chaining parsing attempts
+parseEach :: [a] -> (a -> Parser b) -> Parser b
+parseEach [x] f = f x
+parseEach (x:xs) f = f x ||| parseEach xs f
+parseEach [] _ = fail UnexpectedEof -- Empty list
+
+-- | `chain p op` parses 1 or more instances of `p` separated by `op`
+-- | (see chainl1 from Text.Parsec)
+-- | This can be a very useful parser combinator
+chain :: Parser a -> Parser (a -> a -> a) -> Parser a
+chain p op = p >>= rest
+ where
+  rest a =
+    (do
+        f <- op
+        b <- p
+        rest (f a b)
+      )
+      ||| pure a
+
+-- | Produces a parser that always fails with 'UnexpectedChar' using the given
+-- character.
+unexpectedCharParser :: Char -> Parser a
+unexpectedCharParser = fail . UnexpectedChar
+
+--- Check if the result of parse is an error
+isErrorResult :: ParseResult a -> Bool
+isErrorResult (Error _) = True
+isErrorResult _         = False
+
+readInt :: String -> Maybe (Int, String)
+readInt s = case reads s of
+  [(x, rest)] -> Just (x, rest)
+  _           -> Nothing
+
+-- | Parse numbers as int until non-digit
+--
+-- >>> parse int "abc"
+-- Result >bc< 'a'
+--
+-- >>> isErrorResult (parse int "")
+-- True
+--
+-- >>> isErrorResult (parse int "a")
+-- True
+int :: Parser Int
+int = P f
+ where
+  -- This is okay because the case statement is small
+  f "" = Error UnexpectedEof
+  f x  = case readInt x of
+    Just (v, rest) -> Result rest v
+    Nothing        -> Error $ UnexpectedChar (head x)
+
+-- | Write a parser that asserts that there is no remaining input.
+--
+-- >>> parse eof ""
+-- Result >< ()
+--
+-- >>> isErrorResult (parse eof "abc")
+-- True
+eof :: Parser ()
+eof = P f
+ where
+  f "" = Result "" ()
+  f x  = Error $ ExpectedEof x
+
+-- | Return a parser that produces a lower-case character but fails if:
+--   * the input is empty;
+--   * the produced character is not lower-case.
+--
+lower :: Parser Char
+lower = oneof ['a' .. 'z']
+
+-- | Return a parser that produces an upper-case character but fails if:
+--   * the input is empty; or
+--   * the produced character is not upper-case.
+--
+upper :: Parser Char
+upper = oneof ['A' .. 'Z']
+
+-- | Return a parser that produces an alpha character but fails if:
+--   * the input is empty; or
+--   * the produced character is not alpha.
+--
+alpha :: Parser Char
+alpha = lower ||| upper
+
+-- | Applies the given parser, then parses 0 or more
+-- spaces, then produces the result of the original parser.
+--
+-- >>> parse (tok (is 'a')) "a bc"
+-- Result >bc< 'a'
+--
+-- >>> parse (tok (is 'a')) "abc"
+-- Result >bc< 'a'
+tok :: Parser a -> Parser a
+tok p = p <* spaces 
+
+-- | Parses the given string, followed by 0 or more
+-- spaces.
+--
+-- >>> parse (stringTok "abc") "abc  "
+-- Result >< "abc"
+--
+-- >>> isErrorResult (parse (stringTok "abc") "bc  ")
+-- True
+stringTok :: String -> Parser String
+stringTok str = (string str) <* spaces
+
+-- | Parses the given char followed by 0 or more spaces.
+-- >>> parse (charTok 'a') "abc"
+-- Result >bc< 'a'
+--
+-- >>> isErrorResult (parse (charTok 'a') "dabc")
+-- True
+charTok :: Char -> Parser Char
+charTok c = is c <* spaces
+
