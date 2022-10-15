@@ -4,6 +4,8 @@ import Parser
 import Data.Builder
 import Data.Lambda
 
+import Control.Applicative
+
 {- 
     Part I
     Lambda expressions Parser 
@@ -11,9 +13,10 @@ import Data.Lambda
 
 {-  [ BNF ]
 
+    # Long and Short form parser
     <lambda> ::= <wrappedFunction> <lambda> | <wrappedFunction> | <function>
     <wrappedFunction> ::= "(" <function> ")"
-    <function> ::= "/" <variables> "." <applicationTerm>
+    <function> ::= "λ" <variables> "." <applicationTerm>
     <applicationTerm> ::= <item> | <item> <applicationTerm>
     <item> ::= <terms> | "(" <expression> ")" | <function>
     <expression> ::= <applicationTerm> | <function>
@@ -21,42 +24,46 @@ import Data.Lambda
     <terms> ::= <letter> <terms> | <letter>
     <letter> ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
 
+    # Long form only: (The parameters of a function can only contains one variable)
+    <variables> ::= <letter> 
 -}
 
-lambda :: Parser Builder
-lambda =
-    let funcList = foldBuilders $ list1 wrappedFunction
-    in ((ap <$> funcList) <*> function) ||| funcList
+lambda :: Bool -> Parser Builder
+lambda longOnly = do
+    let wrappedFunc = foldBuilders <$> list1 (wrappedFunction longOnly)
+    (liftA2 (ap) wrappedFunc (function longOnly)) ||| wrappedFunc ||| (function longOnly)
 
-wrappedFunction :: Parser Builder
-wrappedFunction = (between (is '(') (is ')') function)
+wrappedFunction :: Bool -> Parser Builder
+wrappedFunction longOnly = bracket (function longOnly)
 
-function :: Parser Builder
-function =  do
+function :: Bool -> Parser Builder
+function longOnly =  do
     _ <- is 'λ'
-    params <- variables
+    params <- (variables longOnly)
     _ <- is '.'
-    body <- applicationTerm
+    body <- (applicationTerm longOnly)
     return $ params body
 
-applicationTerm :: Parser Builder
-applicationTerm = foldBuilders $ list1 item
+applicationTerm :: Bool -> Parser Builder
+applicationTerm longOnly = foldBuilders <$> list1 (item longOnly)
 
-foldBuilders :: Parser [Builder] -> Parser Builder
-foldBuilders lst = fold <$> lst
-    where fold (x:xs) = foldl (ap) x xs -- Append builders from left to right
-          fold _ = error "Programming error"
+foldBuilders :: [Builder] -> Builder
+foldBuilders (x:xs) = foldl (ap) x xs -- Append builders from left to right
+foldBuilders _ = error "Empty list" -- This should never happen
 
-expression :: Parser Builder
-expression = applicationTerm ||| function
+expression :: Bool -> Parser Builder
+expression longOnly = (applicationTerm longOnly) ||| (function longOnly)
 
-item :: Parser Builder
-item = terms ||| (between (is '(') (is ')') expression) ||| function
+item :: Bool -> Parser Builder
+item longOnly = terms ||| bracket (expression longOnly) ||| (function longOnly)
 
-variables :: Parser (Builder -> Builder)
-variables = do
+variables :: Bool -> Parser (Builder -> Builder)
+variables True = do
+    l <- letter
+    pure $ lam l
+variables False = do
     letters <- list1 letter
-    return $ foldVariables letters
+    pure $ foldVariables letters
     where foldVariables (x:xs) = foldl (\a v -> a . (lam v)) (lam x) xs -- Append variables from left to right
           foldVariables _ = error "Programming error"
 

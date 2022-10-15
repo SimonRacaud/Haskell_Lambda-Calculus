@@ -4,7 +4,7 @@ import Parser
 import Data.Lambda
 import Data.Builder
 
-import Part1 (lambda, function)
+import Part1 (lambda)
 import Part2Logic (logicParser)
 import Part2Arithmetic (arithmeticParser)
 import Part2Complex (complexParser)
@@ -36,8 +36,11 @@ import Part2Complex (complexParser)
 -- >>> parse longLambdaP "(λx.xx)(λx.xx)"
 -- Result >< (\x.xx)\x.xx
 --
+-- >>> parse longLambdaP "(λxy.xy)"
+-- UnexpectedChar '('
+--
 longLambdaP :: Parser Lambda
-longLambdaP = build <$> lambda
+longLambdaP = build <$> (lambda True)
 
 -- | Parses a string representing a lambda calculus expression in short form
 --
@@ -72,7 +75,7 @@ longLambdaP = build <$> lambda
 -- Result >< \x.x\y.y\z.zz
 --
 shortLambdaP :: Parser Lambda
-shortLambdaP = build <$> (lambda ||| function)
+shortLambdaP = build <$> (lambda False)
 
 -- | Parses a string representing a lambda calculus expression in short or long form
 -- parse lambdaP "xx"
