@@ -8,6 +8,7 @@ import Part1 (lambda)
 import Part2Logic (logicParser)
 import Part2Arithmetic (arithmeticParser)
 import Part2Complex (complexParser)
+import Part3List (listParser, functionListParser)
 
 -- You can add more imports if you need them
 
@@ -73,6 +74,9 @@ longLambdaP = build <$> (lambda True)
 --
 -- >>> parse shortLambdaP "λx.xλy.yλz.zz"
 -- Result >< \x.x\y.y\z.zz
+--
+-- >>> parse shortLambdaP "λx.x(λy.y)(λz.zz)"
+-- Result >< \x.x(\y.y)\z.zz
 --
 shortLambdaP :: Parser Lambda
 shortLambdaP = build <$> (lambda False)
@@ -232,7 +236,7 @@ arithmeticP = arithmeticParser
 -- | The helper function you'll need is:
 -- | isZero = λn.n(λx.False)True
 
---
+-- |
 -- >>> lamToBool <$> parse complexCalcP "9 - 2 <= 3 + 6"
 -- Result >< Just True
 --
@@ -308,9 +312,18 @@ complexCalcP = complexParser
 --
 -- >>> parse listP "[0, 0"
 -- UnexpectedEof
+--
+--
+-- >>> parse listP "[True, False, True, False, False]"
+-- Result >< (\htcn.ch(tcn))(\xy.x)((\htcn.ch(tcn))(\xy.y)((\htcn.ch(tcn))(\xy.x)((\htcn.ch(tcn))(\xy.y)((\htcn.ch(tcn))(\xy.y)\cn.n))))
+--
+-- >>> parse listP "[0, [1, [2]]]"
+-- Result >< (\htcn.ch(tcn))(\fx.x)((\htcn.ch(tcn))((\htcn.ch(tcn))(\f.f)((\htcn.ch(tcn))((\htcn.ch(tcn))(\fx.f(fx))(\cn.n))(\cn.n)))\cn.n)
+--
 listP :: Parser Lambda
-listP = undefined
+listP = build <$> listParser
 
+-- | 
 -- >>> lamToBool <$> parse listOpP "head [True, False, True, False, False]"
 -- Result >< Just True
 --
@@ -322,9 +335,52 @@ listP = undefined
 --
 -- >>> lamToBool <$> parse listOpP "isNull [1, 2, 3]"
 -- Result >< Just False
+--
+--
+-- >>> lamToInt <$> parse listOpP "head rest [42, 43, 44, 45]"
+-- Result >< Just 43
+--
+-- >>> lamToInt <$> parse listOpP "head [4, 3, 2]"
+-- Result >< Just 4
+--
+-- >>> lamToBool <$> parse listOpP "isNull null"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse listOpP "isNull tail [1, 2, 3]"
+-- Result >< Just False
+--
+-- >>> lamToBool <$> parse listOpP "isNull tail [1]"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse listOpP "head cons True null"
+-- Result >< Just True
+--
+-- >>> lamToInt <$> parse listOpP "head cons 5 null"
+-- Result >< Just 5
+--
+-- >>> lamToInt <$> parse listOpP "head cons 5 [3, 4, 6]"
+-- Result >< Just 5
+--
+-- >>> lamToInt <$> parse listOpP "head tail cons 5 [3, 4, 6]"
+-- Result >< Just 3
+--
+-- >>> lamToBool <$> parse listOpP "head [True and False, True, False]"
+-- Result >< Just False
+--
+-- >>> lamToInt <$> parse listOpP "head [10 - 4 * 2]"
+-- Result >< Just 2
+--
+-- >>> lamToBool <$> parse listOpP "head [10 - 4 * 2 > 1]"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse listOpP "head [(λxy.x)]"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse listOpP "head [(λxy.y)]"
+-- Result >< Just False
+--
 listOpP :: Parser Lambda
-listOpP = undefined
-
+listOpP = functionListParser ||| listP
 
 -- | Exercise 2
 

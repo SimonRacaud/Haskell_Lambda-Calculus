@@ -27,6 +27,7 @@ instance Eq a => Eq (ParseResult a) where
   _              == _              = False
 
 data ParseError = UnexpectedChar Char
+  | UnexpectedToken Input
   | ExpectedEof Input
   | UnexpectedEof
   deriving (Eq,Show)
@@ -290,3 +291,54 @@ stringTok str = (string str) <* spaces
 charTok :: Char -> Parser Char
 charTok c = is c <* spaces
 
+-- Produces a non-empty list of values from repeating the given parser 
+-- (which must succeed at least once), separated by the second given parser.
+-- >>> parse (sepby1 char (is ',')) "a"
+-- Result >< "a"
+--
+-- >>> parse (sepby1 char (is ',')) "a,b,c"
+-- Result >< "abc"
+--
+-- >>> parse (sepby1 char (is ',')) "a,b,c,,def"
+-- Result >def< "abc,"
+--
+-- >>> isErrorResult (parse (sepby1 char (is ',')) "")
+-- True
+sepby1 :: Parser a -> Parser s -> Parser [a]
+sepby1 p1 p2 = liftA2 (:) p1 (list parse)
+  where parse = p2 >> spaces >> p1
+
+-- Produces a list of values from repeating the given parser, separated by 
+-- the second given parser.
+-- >>> parse (sepby char (is ',')) ""
+-- Result >< ""
+--
+-- >>> parse (sepby char (is ',')) "a"
+-- Result >< "a"
+--
+-- >>> parse (sepby char (is ',')) "a,b,c"
+-- Result >< "abc"
+--
+-- >>> parse (sepby char (is ',')) "a,b,c,,def"
+-- Result >def< "abc,"
+sepby :: Parser a -> Parser s -> Parser [a]
+sepby p1 p2 = sepby1 p1 p2 ||| pure []
+
+-- | Produces a parser for an array (list)
+-- >>> parse (array $ tok int) "[1,2,3,4,5]"
+-- Result >< [1,2,3,4,5]
+--
+-- >>> parse (array $ tok int) "[ 1,2,3,4,5]"
+-- Result >< [1,2,3,4,5]
+--
+-- >>> parse (array $ tok int) "[]"
+-- Result >< []
+--
+-- >>> parse (array $ tok int) "[ ] "
+-- Result >< []
+--
+-- >>> isErrorResult (parse (array $ tok int) "1")
+-- True
+array :: Parser a -> Parser [a]
+array p1 = spaces *> (between (is '[') (is ']') parseArray) <* spaces
+  where parseArray = spaces *> sepby p1 (is ',')

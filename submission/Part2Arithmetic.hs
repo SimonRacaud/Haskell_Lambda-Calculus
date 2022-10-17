@@ -7,8 +7,6 @@ import Data.Builder
 import Text.Read
 import Data.Char
 
-import Debug.Trace
-
 {-  BNF:
 
     <expr> ::= <operation> | <bracket> | <number>

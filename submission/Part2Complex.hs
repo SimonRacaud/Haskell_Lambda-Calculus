@@ -7,8 +7,6 @@ import Data.Builder
 import qualified Part2Arithmetic as Arithm
 import qualified Part2Logic as Logic
 
-import Data.Char
-import Text.Read
 import Data.List
 
 import Debug.Trace (trace)
@@ -251,7 +249,16 @@ neq = lam 'm' $ lam 'n' $ Logic.genNot `ap` (eq `ap` (term 'm') `ap` (term 'n'))
 
 -- | isZero = λn.n(λx.False)True
 isZero :: Builder
-isZero = lam 'n' $ (term 'n') `ap` (lam 'x' Logic.genFalse) `ap` Logic.genTrue
+isZero = lam 'n' $ (term 'n') `ap` (lam 'x' genFalse) `ap` genTrue
+
+-- true = \xy.x
+genTrue :: Builder
+genTrue = lam 'x' $ lam 'y' (term 'x')
+
+-- false = \xy.y
+genFalse :: Builder
+genFalse = lam 'x' $ lam 'y' (term 'y')
+
 
 ------ [ Parser ]
 
@@ -296,8 +303,8 @@ logicParamParser :: Parser Expr
 logicParamParser = boolParser ||| compExprParser
 
 boolParser :: Parser Expr
-boolParser = (stringTok "True" *> (pure $ Var Logic.genTrue)) 
-                ||| (stringTok "False" *> (pure $ Var Logic.genFalse)) 
+boolParser = (stringTok "True" *> (pure $ Var genTrue)) 
+                ||| (stringTok "False" *> (pure $ Var genFalse)) 
             <* spaces
 
 --- [ Comparison Layer ]

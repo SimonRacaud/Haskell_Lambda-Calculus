@@ -30,7 +30,9 @@ library
       LambdaParser
       Part1
       Part2Arithmetic
+      Part2Complex
       Part2Logic
+      Part3List
   other-modules:
       Paths_2022Assignment2
   hs-source-dirs:

@@ -2,7 +2,6 @@ module Part1 where
 
 import Parser
 import Data.Builder
-import Data.Lambda
 
 import Control.Applicative
 
