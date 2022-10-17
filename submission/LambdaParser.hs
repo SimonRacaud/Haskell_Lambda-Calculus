@@ -444,6 +444,12 @@ listP = build <$> listParser
 -- >>> lamToBool <$> parse listOpP "head [(λxy.y)]"
 -- Result >< Just False
 --
+-- >>> lamToInt <$> parse listOpP "head rest rest [42, 43, 44, 45]"
+-- Result >< Just 44
+--
+-- >>> lamToInt <$> parse listOpP "head cons 8 rest rest [42, 43, 44, 45]"
+-- Result >< Just 8
+--
 listOpP :: Parser Lambda
 listOpP = functionListParser ||| listP
 
