@@ -108,7 +108,7 @@ parseNot (Uno _ (Uno _ b)) = applyNot $ parseNot b
     where 
         applyNot :: LogicExpr -> LogicExpr
         applyNot (Var a) = Var $ genNot `ap` (genNot `ap` a)
-        applyNot (Duo op (Var a) c) = Duo op (Var $ genNot `ap` (genNot `ap` a)) c
+        applyNot (Duo op (Var a) c) = Duo op (Var $ genNot `ap` (genNot `ap` a)) (parseNot c)
         applyNot e = trace ("parseNot: unexpected error. " ++ (show e)) (error "internal error")
 parseNot (Uno _ (Duo op (Var a) b)) = Duo op (Var $ genNot `ap` a) (parseNot b) -- Parse data & Propagate
 parseNot (Duo op a b) = Duo op (parseNot a) (parseNot b) -- Propagate
@@ -139,27 +139,27 @@ parseOr x = id x -- Do nothing
 ---
 stmtParser :: Parser Stmt
 stmtParser = spaces *>
-    (ifCondParser ||| (between (is '(') (is ')') ifCondParser) ||| (Expr <$> exprParser))
+    (ifCondParser ||| (bracket ifCondParser) ||| (Expr <$> exprParser))
 
 ifCondParser :: Parser Stmt
 ifCondParser = do
-    _ <- string "if"
+    _ <- stringTok "if"
     cond <- exprParser
     _ <- spaces -- skip spaces
-    _ <- string "then"
-    _ <- spaces -- skip spaces
+    _ <- stringTok "then"
     positif <- stmtParser
     _ <- spaces -- skip spaces
-    _ <- string "else"
-    _ <- spaces -- skip spaces
+    _ <- stringTok "else"
     negatif <- stmtParser
     pure $ If cond positif negatif
 
 exprParser :: Parser LogicExpr
-exprParser = spaces *> (duopParser
+exprParser = spaces *> (
+                duopParser
             ||| unopParser
             ||| subExprParser
-            ||| boolParser)
+            ||| boolParser
+            ) <* spaces
 
  -- Restricted version of exprParser to avoid infinite recursion (duop)
 paramParser :: Parser LogicExpr
@@ -167,7 +167,7 @@ paramParser = subExprParser
             ||| boolParser
 
 subExprParser :: Parser LogicExpr
-subExprParser = SubExpr <$> (between (is '(') (is ')') exprParser)
+subExprParser = SubExpr <$> (bracket exprParser)
 
 unopParser :: Parser LogicExpr
 unopParser = do
@@ -182,8 +182,7 @@ andParser :: Parser LogicExpr
 andParser = do
     a <- paramParser -- Restricted version of exprParser to avoid infinite recursion
     _ <- spaces -- skip spaces
-    _ <- string "and"
-    _ <- spaces -- skip spaces
+    _ <- stringTok "and"
     b <- exprParser
     pure $ Duo And a b
 
@@ -191,11 +190,10 @@ orParser :: Parser LogicExpr
 orParser = do
     a <- paramParser -- Restricted version of exprParser to avoid infinite recursion
     _ <- spaces -- skip spaces
-    _ <- string "or"
-    _ <- spaces -- skip spaces
+    _ <- stringTok "or"
     b <- exprParser
     pure $ Duo Or a b
 
 boolParser :: Parser LogicExpr
-boolParser = (string "True" *> (pure $ Var genTrue)) 
-            ||| (string "False" *> (pure $ Var genFalse))
+boolParser = (stringTok "True" *> (pure $ Var genTrue)) 
+            ||| (stringTok "False" *> (pure $ Var genFalse))
