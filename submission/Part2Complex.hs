@@ -272,7 +272,7 @@ stmtParser = spaces *>
     ||| (Expr <$> arithmExprParser))
 
 ifCondParser :: Parser Stmt
-ifCondParser = do
+ifCondParser = spaces *> do
     _ <- stringTok "if"
     cond <- logicExprParser
     _ <- stringTok "then"
@@ -283,9 +283,9 @@ ifCondParser = do
 
 logicExprParser :: Parser Expr
 logicExprParser = logicDuopParser 
-                        ||| logicUnopParser 
-                        ||| subExprParser logicExprParser 
-                        ||| logicParamParser
+                    ||| logicUnopParser 
+                    ||| subExprParser logicExprParser 
+                    ||| logicParamParser
 
 logicDuopParser :: Parser Expr
 logicDuopParser = parseEachOperator logicDuoOperators duopParser 

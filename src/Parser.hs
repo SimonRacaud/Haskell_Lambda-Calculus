@@ -149,7 +149,7 @@ between fo fc fa = fo *> fa <* fc
 
 -- Parse expression under brackets
 bracket :: Parser a -> Parser a
-bracket = between (is '(') (is ')') 
+bracket = between (spaces *> charTok '(') (charTok ')') 
 
 -- >>> (parserToReadS (get)) "123"
 -- [('1',"23")]

@@ -40,6 +40,9 @@ import Part3List (listParser, functionListParser)
 -- >>> parse longLambdaP "(λxy.xy)"
 -- UnexpectedChar '('
 --
+-- >>> parse longLambdaP "λy.(λx.xx)y"
+-- Result >< \y.(\x.xx)y
+--
 longLambdaP :: Parser Lambda
 longLambdaP = build <$> (lambda True)
 
@@ -169,6 +172,12 @@ lambdaP = longLambdaP ||| shortLambdaP
 -- >>> lamToBool <$> parse logicP "not  True and False or  True"
 -- Result >< Just True
 --
+-- >>> lamToBool <$> parse logicP "True or (  True and False ) or not False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse logicP "True or False or not False"
+-- Result >< Just True
+--  
 logicP :: Parser Lambda
 logicP = build <$> logicParser
 
@@ -208,7 +217,7 @@ basicArithmeticP = arithmeticParser
 -- >>> lamToInt <$> parse arithmeticP "1 - 2"
 -- Result >< Just 0
 --
--- >>> lamToInt <$> parse arithmeticP "2**8"
+-- >>> lamToInt <$> parse arithmeticP "2 **8"
 -- Result >< Just 256
 --
 -- >>> lamToInt <$> parse arithmeticP "2 **8 - 1"
@@ -285,6 +294,57 @@ arithmeticP = arithmeticParser
 -- >>> lamToBool <$> parse complexCalcP "1 != 1"
 -- Result >< Just False
 --
+-- >>> lamToInt <$> parse complexCalcP "5 + 9 * 3 - 2**3"
+-- Result >< Just 24
+--
+-- >>> lamToInt <$> parse complexCalcP "100 - 4 * 2**(4-1)"
+-- Result >< Just 68
+--
+-- >>> lamToInt <$> parse complexCalcP "1 + 8 * 8 + 2 * 8"
+-- Result >< Just 81
+--
+-- >>> lamToInt <$> parse complexCalcP "1 - 2"
+-- Result >< Just 0
+--
+-- >>> lamToInt <$> parse complexCalcP "2 **8"
+-- Result >< Just 256
+--
+-- >>> lamToInt <$> parse complexCalcP "2 **8 - 1"
+-- Result >< Just 255
+--
+-- >>> lamToInt <$> parse complexCalcP "2 **(8 - 1)"
+-- Result >< Just 128
+--
+-- >>> lamToInt <$> parse complexCalcP "2* 2 **(8 - 1)"
+-- Result >< Just 256
+--
+-- >>> lamToBool <$> parse complexCalcP "True and not not not False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "True and not not False"
+-- Result >< Just False
+--
+-- >>> lamToBool <$> parse complexCalcP "True or not not False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "True or False and not not False or False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "if True and not False then if True and not False then True or True else False else False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "if True and not False then (if True and not False then True or True else False) else False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "not  True and False or  True"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "True or (  True and False ) or not False"
+-- Result >< Just True
+--
+-- >>> lamToBool <$> parse complexCalcP "True or False or not False"
+-- Result >< Just True
+--
 complexCalcP :: Parser Lambda
 complexCalcP = complexParser
 
@@ -336,6 +396,11 @@ listP = build <$> listParser
 -- >>> lamToBool <$> parse listOpP "isNull [1, 2, 3]"
 -- Result >< Just False
 --
+--
+-- >>> parse listOpP " [  ] "
+-- Result >< \cn.n
+-- >>> parse listOpP "[]"
+-- Result >< \cn.n
 --
 -- >>> lamToInt <$> parse listOpP "head rest [42, 43, 44, 45]"
 -- Result >< Just 43
