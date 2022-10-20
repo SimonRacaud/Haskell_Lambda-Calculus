@@ -56,31 +56,38 @@ genNot = lam 'x' (genIf `ap` (term 'x') `ap` genFalse `ap` genTrue)
 
 ---- [ Data ]
 
-data LogicExpr = Var Builder
-                | Uno Unop LogicExpr
-                | Duo Duop LogicExpr LogicExpr
+-- Tree to represent a logical expression
+data LogicExpr = Var Builder -- Lambda builder
+                | Uno Unop LogicExpr -- Unary operation
+                | Duo Duop LogicExpr LogicExpr -- Dual operation
                 | SubExpr LogicExpr -- Brackets ()
                 deriving Show
 
+-- Operators enum
 data Unop = Not deriving Show
 data Duop = And | Or deriving Show
-data Stmt = Expr LogicExpr 
-            | If LogicExpr Stmt Stmt          
+
+-- Statement structure
+data Stmt = Expr LogicExpr -- Basic expression
+            | If LogicExpr Stmt Stmt -- If statement
             deriving Show
 
 ---- [ Parser ]
 
+-- Main function of the parser
 logicParser :: Parser Builder
 logicParser = do
-    tree <- stmtParser
-    case parseStmt tree of
+    tree <- stmtParser -- Convert the string to an expression Tree
+    case parseStmt tree of -- Resolve the expressions
         (Just a) -> pure $ a
         Nothing -> Parser.fail UnexpectedEof -- Expression resolution failure
 
+-- Resolve a statement
 parseStmt :: Stmt -> Maybe Builder
 parseStmt (Expr e) = parseExpr e
 parseStmt (If c a b) = parseIfCond c a b
 
+-- Resolve an If statement
 parseIfCond :: LogicExpr -> Stmt -> Stmt -> Maybe Builder
 parseIfCond c a b = do
     parseExpr c >>= (\cond ->
@@ -89,19 +96,24 @@ parseIfCond c a b = do
                 Just $ ((genIf `ap` cond) `ap` pos) `ap` neg
                 )))
 
+-- Resolve a logical expression
+-- The operation resolvers are applied by priority order
 parseExpr :: LogicExpr -> Maybe Builder
 parseExpr expr = convert $ parseOr <$> parseAnd <$> parseNot <$> parseBracket expr
     where 
+        -- Extract the resulting Builder or return an error
         convert :: Maybe LogicExpr -> Maybe Builder
         convert (Just (Var a)) = Just a
         convert a = trace ("Fail to reduce expression: "++show a) Nothing
 
+-- Resolve all sub-expressions
 parseBracket :: LogicExpr -> Maybe LogicExpr
 parseBracket (SubExpr e) = Var <$> parseExpr e -- Parse expression
 parseBracket (Uno op a) = (Uno op) <$> (parseBracket a) -- Propagate
 parseBracket (Duo op a b) = (Duo op) <$> (parseBracket a) <*> (parseBracket b) -- Propagate
 parseBracket a = Just a -- do nothing
 
+-- Resolve all Not operations
 parseNot :: LogicExpr -> LogicExpr
 parseNot (Uno _ (Var b)) = Var $ genNot `ap` b -- Parse data
 parseNot (Uno _ (Uno _ b)) = applyNot $ parseNot b
@@ -114,12 +126,14 @@ parseNot (Uno _ (Duo op (Var a) b)) = Duo op (Var $ genNot `ap` a) (parseNot b) 
 parseNot (Duo op a b) = Duo op (parseNot a) (parseNot b) -- Propagate
 parseNot a = id a -- do nothing
 
+-- Resolve all And operations
 parseAnd :: LogicExpr -> LogicExpr
 parseAnd (Duo And (Var a) (Var b)) = Var $ genAnd `ap` a `ap` b -- Parse data
 parseAnd (Duo And (Var a) (Duo op (Var b) c)) = Duo op (Var $ genAnd `ap` a `ap` b) (parseAnd c) -- Parse data & Propagate
 parseAnd (Duo Or a b) = Duo Or (parseAnd a) (parseAnd b) -- Propagate
 parseAnd a = id a -- do nothing
 
+-- Resolve all Or operations
 parseOr :: LogicExpr -> LogicExpr
 parseOr (Duo Or (Var a) (Var b)) = Var $ genOr `ap` a `ap` b -- Parse data
 parseOr (Duo Or (Var a) b) = Var $ genOr `ap` a `ap` (applyOr $ parseOr b) -- Resolve sub-expressions
@@ -129,7 +143,9 @@ parseOr (Duo Or (Var a) b) = Var $ genOr `ap` a `ap` (applyOr $ parseOr b) -- Re
         applyOr e = trace ("parseOr: unexpected error. " ++ (show e)) (error "internal error")
 parseOr x = id x -- Do nothing
 
---- Parse the input to a tree of statements and expressions
+---
+---- [ Parse the input to a tree of statements and expressions ]
+---
 
 --- >>> parse stmtParser "not True or False and False"
 --- Result >< Expr (Uno Not (Duo Or (Var True) (Duo And (Var False) (Var False))))
@@ -141,6 +157,7 @@ stmtParser :: Parser Stmt
 stmtParser = spaces *>
     (ifCondParser ||| (bracket ifCondParser) ||| (Expr <$> exprParser))
 
+-- Parse an if statement
 ifCondParser :: Parser Stmt
 ifCondParser = do
     _ <- stringTok "if"
@@ -153,6 +170,7 @@ ifCondParser = do
     negatif <- stmtParser
     pure $ If cond positif negatif
 
+-- Parse any logical expression
 exprParser :: Parser LogicExpr
 exprParser = spaces *> (
                 duopParser
@@ -161,23 +179,28 @@ exprParser = spaces *> (
             ||| boolParser
             ) <* spaces
 
- -- Restricted version of exprParser to avoid infinite recursion (duop)
+-- Parse the first parameter of a dual operation
+-- Restricted version of exprParser to avoid infinite recursion (duop)
 paramParser :: Parser LogicExpr
 paramParser = subExprParser
             ||| boolParser
 
+-- Parse a sub-expression "()"
 subExprParser :: Parser LogicExpr
 subExprParser = SubExpr <$> (bracket exprParser)
 
+-- Parse unary operation (Not)
 unopParser :: Parser LogicExpr
 unopParser = do
     _ <- string "not"
     a <- exprParser
     pure $ Uno Not a
 
+-- Parse Dual operations (Or, And)
 duopParser :: Parser LogicExpr
 duopParser = andParser ||| orParser
 
+-- Parse And operation
 andParser :: Parser LogicExpr
 andParser = do
     a <- paramParser -- Restricted version of exprParser to avoid infinite recursion
@@ -186,6 +209,7 @@ andParser = do
     b <- exprParser
     pure $ Duo And a b
 
+-- Parse Or operation
 orParser :: Parser LogicExpr
 orParser = do
     a <- paramParser -- Restricted version of exprParser to avoid infinite recursion
@@ -194,6 +218,7 @@ orParser = do
     b <- exprParser
     pure $ Duo Or a b
 
+-- Parse Boolean
 boolParser :: Parser LogicExpr
 boolParser = (stringTok "True" *> (pure $ Var genTrue)) 
             ||| (stringTok "False" *> (pure $ Var genFalse))
