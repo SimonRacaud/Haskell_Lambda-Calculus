@@ -9,7 +9,6 @@ import Debug.Trace
     Part II - parse arithmetic and logical expressions 
 -}
 
-
 {- Exercice I -}
 
 {- [BNF]
@@ -89,7 +88,7 @@ parseStmt (If c a b) = parseIfCond c a b
 
 -- Resolve an If statement
 parseIfCond :: LogicExpr -> Stmt -> Stmt -> Maybe Builder
-parseIfCond c a b = do
+parseIfCond c a b =
     parseExpr c >>= (\cond ->
         parseStmt a >>= (\pos ->
             parseStmt b >>= (\neg ->
@@ -113,7 +112,7 @@ parseBracket (Uno op a) = (Uno op) <$> (parseBracket a) -- Propagate
 parseBracket (Duo op a b) = (Duo op) <$> (parseBracket a) <*> (parseBracket b) -- Propagate
 parseBracket a = Just a -- do nothing
 
--- Resolve all Not operations
+-- Resolve all 'Not' operations
 parseNot :: LogicExpr -> LogicExpr
 parseNot (Uno _ (Var b)) = Var $ genNot `ap` b -- Parse data
 parseNot (Uno _ (Uno _ b)) = applyNot $ parseNot b
@@ -126,14 +125,14 @@ parseNot (Uno _ (Duo op (Var a) b)) = Duo op (Var $ genNot `ap` a) (parseNot b) 
 parseNot (Duo op a b) = Duo op (parseNot a) (parseNot b) -- Propagate
 parseNot a = id a -- do nothing
 
--- Resolve all And operations
+-- Resolve all 'And' operations
 parseAnd :: LogicExpr -> LogicExpr
 parseAnd (Duo And (Var a) (Var b)) = Var $ genAnd `ap` a `ap` b -- Parse data
 parseAnd (Duo And (Var a) (Duo op (Var b) c)) = Duo op (Var $ genAnd `ap` a `ap` b) (parseAnd c) -- Parse data & Propagate
 parseAnd (Duo Or a b) = Duo Or (parseAnd a) (parseAnd b) -- Propagate
 parseAnd a = id a -- do nothing
 
--- Resolve all Or operations
+-- Resolve all 'Or' operations
 parseOr :: LogicExpr -> LogicExpr
 parseOr (Duo Or (Var a) (Var b)) = Var $ genOr `ap` a `ap` b -- Parse data
 parseOr (Duo Or (Var a) b) = Var $ genOr `ap` a `ap` (applyOr $ parseOr b) -- Resolve sub-expressions

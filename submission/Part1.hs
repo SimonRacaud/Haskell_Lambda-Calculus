@@ -19,9 +19,11 @@ import Control.Applicative
     <applicationTerm> ::= <item> | <item> <applicationTerm>
     <item> ::= <terms> | "(" <expression> ")" | <function>
     <expression> ::= <applicationTerm> | <function>
-    <variables> ::= <letter> <variables> | <letter>
     <terms> ::= <letter> <terms> | <letter>
-    <letter> ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
+    <letter> ::= 'a' ... 'z'
+
+    # Short form
+    <variables> ::= <letter> <variables> | <letter>
 
     # Long form only: (The parameters of a function can only contains one variable)
     <variables> ::= <letter> 
@@ -34,8 +36,8 @@ lambda longOnly = do
     -- Try to parse every lambda expression under brackets (e.g. "(Exp1)(Exp2)(Exp3)..." )
     let wrappedFunc = foldBuilders <$> list1 (wrappedFunction longOnly)
     -- Parse a combinaison of wrapped expressions with a non-wrapped at the end: e.g. "(E1)(E2)(E3)E4"
-    -- Or parse a combinaison of wrapped expressions: e.g. "(E1)(E2)(E3).."
-    -- Or parse a single non-wrapped expression: e.g. "\x.x"
+    --  or parse a combinaison of wrapped expressions: e.g. "(E1)(E2)(E3).."
+    --  or parse a single non-wrapped expression: e.g. "\x.x"
     (liftA2 (ap) wrappedFunc (function longOnly)) ||| wrappedFunc ||| (function longOnly)
 
 -- Parse expression wrapped under brackets
